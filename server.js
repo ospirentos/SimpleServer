@@ -25,7 +25,7 @@ app.post('/api/logincheck', (req, res) => {
             let token = jwt.sign({ username: req.body.email },
               config.secret,
               {
-                expiresIn: '24h'
+                expiresIn: "24h"
               }
             );
             res.json({
