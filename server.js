@@ -58,6 +58,26 @@ app.post('/api/tokencheck',tokenhandler.checkToken, (req, res) => {
   });
 });
 
+app.post('/api/emailcheck', (req, res) => {
+  console.log(req.body.email);
+  const client = new MongoClient(uri, { useNewUrlParser: true });
+  client.connect(err => {
+    if (err) throw err;
+    const collection = client.db("reactnative").collection("users");
+    collection.find({ email: req.body.email }).toArray(function (err, result) {
+      if (err) throw err;
+      if (result !== 'undefined' && result.length > 0) {
+        res.json({
+          success: true
+        });
+      } else {
+        res.json({
+          success: false
+        })
+      }
+    });
+  });
+});
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))
 
 
