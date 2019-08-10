@@ -3,82 +3,91 @@ const express = require('express')
 const bodyParser = require("body-parser");
 let jwt = require('jsonwebtoken');
 let config = require('./config');
-let tokenhandler = require('./tokenhandler');
+let login = require('./LoginHandler');
+let usrservice = require('./UserServices')
 const app = express()
 const port = 80
+let http = require('http').createServer(app);
+let io = require('socket.io')(http, { 'pingInterval': 2000, 'pingTimeout': 5000 });
+let ioAdmin = require('socket.io')(http, { 'pingInterval': 2000, 'pingTimeout': 5000, 'path': '/admin' });
+
 const uri = "mongodb+srv://ospirentos:Ko19933155.@generalpurposecluster-7nnzc.mongodb.net/test?retryWrites=true&w=majority";
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+let onlineUsers = [];
+onlineUsersInfo = [];
+DMlist = [];
 
-app.post('/api/logincheck', (req, res) => {
-  console.log(req.body.email);
-  const client = new MongoClient(uri, { useNewUrlParser: true });
-  client.connect(err => {
-    if (err) throw err;
-    const collection = client.db("reactnative").collection("users");
-        collection.find({email:req.body.email}).toArray(function(err, result) {
-        if (err) throw err;
-        if (result !== 'undefined' && result.length > 0) {
-          if (req.body.password === result[0].password) {
-            let token = jwt.sign({ username: req.body.email },
-              config.secret,
-              {
-                expiresIn: "24h"
-              }
-            );
-            res.json({
-              success: true,
-              token: token
-            });
-          } else {
-            res.json({
-              success: false,
-              token: "none"
-            });
-          }
-        } else {
-          res.json({
-            success: false,
-            token: "none"
-          });
-        }
-      })
-  
-    client.close();
-    console.log("Connection Closed.")
-  });
 
+app.post('/api/loginWithToken', login.checkToken);
+
+app.post('/api/login', login.login);
+
+app.post('/api/signup', login.signup);
+
+app.post('/api/getUserData', usrservice.getUserData);
+
+app.post('/api/changeStatus', usrservice.changeStatus);
+
+app.get('/api/getOnlineUsers', (req, res) => {
+    res.json({
+        data: onlineUsersInfo
+    })
+    return res;
 });
 
-app.post('/api/tokencheck',tokenhandler.checkToken, (req, res) => {
-  res.json({
-    success: true
-  });
-});
 
-app.post('/api/emailcheck', (req, res) => {
-  console.log(req.body.email);
-  const client = new MongoClient(uri, { useNewUrlParser: true });
-  client.connect(err => {
-    if (err) throw err;
-    const collection = client.db("reactnative").collection("users");
-    collection.find({ email: req.body.email }).toArray(function (err, result) {
-      if (err) throw err;
-      if (result !== 'undefined' && result.length > 0) {
-        res.json({
-          success: true
-        });
-      } else {
-        res.json({
-          success: false
+
+io.on('connection', function (socket) {
+    socket.on('User', (data) => {
+        const client = new MongoClient(uri, { useNewUrlParser: true });
+        client.connect(err => {
+            if (err) throw err;
+            const collection = client.db("dynamic-character-sheet").collection("users");
+            collection.find({ username: data }).toArray(function (err, result) {
+                if (err) throw err;
+                if (result !== 'undefined' && result.length > 0) {
+                    onlineUsersInfo.push(result[0]);
+                    console.log(onlineUsersInfo);
+                    if (DMlist.length > 0) {
+                        DMlist[0].emit('UserInfo', onlineUsersInfo);
+                    }
+                } else {
+                    client.close();
+                }
+            })
         })
+    })
+
+    onlineUsers.push(socket);
+    console.log('A user is joined.');
+    socket.on('disconnect', () => {
+        console.log('A user is disconnected.');
+
+      var i = onlineUsers.indexOf(socket);
+      onlineUsers.splice(i, 1);
+      onlineUsersInfo.splice(i,1);
+      if (DMlist.length > 0) {
+          DMlist[0].emit('UserInfo', onlineUsersInfo);
       }
-    });
-  });
+    })
 });
-app.listen(port, () => console.log(`Example app listening on port ${port}!`))
+
+ioAdmin.on('connection', function(socket) {
+    console.log('DM is connected.');
+    DMlist.push(socket);
+    socket.emit('UserInfo', onlineUsersInfo);
+    socket.on('disconnect', () => {
+        console.log('DM is disconnected.');
+
+      var i = DMlist.indexOf(socket);
+      DMlist.splice(i, 1);
+    })
+});
+
+http.listen(port, () => console.log(`Example app listening on port ${port}!`))
 
 
 
