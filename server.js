@@ -6,7 +6,7 @@ let config = require('./config');
 let login = require('./LoginHandler');
 let usrservice = require('./UserServices')
 const app = express()
-const port = 80
+const port = 8080
 let http = require('http').createServer(app);
 let io = require('socket.io')(http, { 'pingInterval': 2000, 'pingTimeout': 5000 });
 let ioAdmin = require('socket.io')(http, { 'pingInterval': 2000, 'pingTimeout': 5000, 'path': '/admin' });
@@ -37,6 +37,10 @@ app.get('/api/getOnlineUsers', (req, res) => {
     })
     return res;
 });
+
+app.post('/api/createNewCharacter', usrservice.createNewCharacter);
+
+app.post('/api/removeCharacter', usrservice.removeCharacter);
 
 
 

@@ -83,8 +83,50 @@ let getOnlinePlayers = (req, res) => {
     return res;
 };
 
+let createNewCharacter = (req,res) => {
+    const charData = req.body.charData;
+    const userName = charData.username;
+    delete charData.username;
+    const client = new MongoClient(uri, { useNewUrlParser: true });
+    client.connect(err => {
+        if (err) throw err;
+        const collection = client.db("dynamic-character-sheet").collection("users");
+        collection.updateOne({username: userName}, {$push: {characters: charData}}, function (err, result) {
+            if (err) throw err;
+            console.log("New character", charData.name ,"is successfully created.");
+            client.close();
+            res.json({
+                successfull: true,
+            })
+            return res;
+            console.log(charData);
+        })
+    });
+}
+
+let removeCharacter = (req,res) => {
+    console.log('Remove char request is invoked.')
+    const {charname, username} = req.body.data;
+    const client = new MongoClient(uri, { useNewUrlParser: true });
+    client.connect(err => {
+        if (err) throw err;
+        const collection = client.db("dynamic-character-sheet").collection("users");
+        collection.updateOne({username: username}, {$pull: {characters: {name : charname}}}, function (err, result) {
+            if (err) throw err;
+            console.log("Character ", charname ,"is successfully removed by user ", username );
+            res.json({
+                successfull: true,
+            })
+            client.close();
+            return res;
+        })
+    });
+}
+
 module.exports = {
     getUserData: getUserData,
     changeStatus: changeStatus,
-    getOnlinePlayers: getOnlinePlayers
+    getOnlinePlayers: getOnlinePlayers,
+    createNewCharacter,
+    removeCharacter,
 }
